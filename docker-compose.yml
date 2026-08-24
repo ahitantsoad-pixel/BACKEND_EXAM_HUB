@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: exam_hub_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: exam_hub
+      POSTGRES_USER: exam_hub_user
+      POSTGRES_PASSWORD: changeme
+    ports:
+      - "5432:5432"
+    volumes:
+      - exam_hub_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+
+volumes:
+  exam_hub_data:
