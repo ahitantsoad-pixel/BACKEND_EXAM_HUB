@@ -1,18 +1,23 @@
 services:
-  postgres:
-    image: postgres:16
-    container_name: exam_hub_db
+  db:
+    image: postgres:16-alpine
+    container_name: exam-hub-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: exam_hub
-      POSTGRES_USER: exam_hub_user
-      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: ${DB_NAME:-exam_hub}
+      POSTGRES_USER: ${DB_USER:-exam_hub_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-exam_hub_password}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
-      - exam_hub_data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - exam_hub_db_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-exam_hub_user} -d ${DB_NAME:-exam_hub}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  exam_hub_data:
+  exam_hub_db_data:
