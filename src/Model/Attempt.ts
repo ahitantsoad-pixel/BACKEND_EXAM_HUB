@@ -1,28 +1,27 @@
+// src/Model/Attempt.ts
+
 export interface Attempt {
   id: number;
   studentId: number;
   examId: number;
   score: number;
-  totalPoints: number;
   submittedAt: string; 
 }
 
 export interface AttemptRow {
-  id: number;
-  student_id: number;
-  exam_id: number;
+  id: string | number;      
+  student_id: string | number;
+  exam_id: string | number;
   score: number;
-  total_points: number;
   submitted_at: Date;
 }
 
 export function mapAttemptRow(row: AttemptRow): Attempt {
   return {
-    id: row.id,
-    studentId: row.student_id,
-    examId: row.exam_id,
+    id: Number(row.id),
+    studentId: Number(row.student_id),
+    examId: Number(row.exam_id),
     score: row.score,
-    totalPoints: row.total_points,
     submittedAt: row.submitted_at.toISOString(),
   };
 }

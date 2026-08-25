@@ -15,10 +15,8 @@ export interface AnswerCorrection {
 }
 
 export interface AnswerRow {
-  id: number;
-  attempt_id: number;
-  question_id: number;
-  choice_id: number | null;
-  is_correct: boolean;
-  points_earned: number;
+  id: string | number;
+  attempt_id: string | number;
+  question_id: string | number;
+  choice_id: string | number | null;
 }
