@@ -63,10 +63,10 @@ async function main() {
   // Nettoyage
   await request("DELETE", `/exams/${examRes.body.id}`, token);
   await request("DELETE", `/courses/${courseRes.body.id}`, token);
-  console.log("\n✅ Intégration BE1 + BE2 validée (login réel, token réel, cours réel, examen réel).");
+  console.log("\n Intégration BE1 + BE2 validée (login réel, token réel, cours réel, examen réel).");
 }
 
 main().catch((err) => {
-  console.error("\n❌ Échec :", err.message ?? err);
+  console.error("\n Échec :", err.message ?? err);
   process.exit(1);
 });
