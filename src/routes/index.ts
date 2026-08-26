@@ -1,4 +1,6 @@
 import { Router } from "express";
+import examRoutes from "./examRoutes";
+import questionRoutes from "./questionRoutes";
 
 /**
  * Point de montage central de toutes les routes /api/*.
@@ -8,10 +10,6 @@ import { Router } from "express";
  *   - BE1  : authRoutes, studentRoutes, courseRoutes
  *   - BE2  : examRoutes, questionRoutes   <- vous
  *   - BE3  : myRoutes
- *
- * Exemple, une fois vos routes prêtes :
- *   import examRoutes from "./examRoutes";
- *   router.use("/exams", examRoutes);
  */
 const router = Router();
 
@@ -19,8 +17,8 @@ const router = Router();
 // router.use("/auth", authRoutes);
 // router.use("/students", studentRoutes);
 // router.use("/courses", courseRoutes);
-// router.use("/exams", examRoutes);
-// router.use("/questions", questionRoutes);
+router.use("/exams", examRoutes);
+router.use("/questions", questionRoutes);
 // router.use("/my", myRoutes);
 
 export default router;
