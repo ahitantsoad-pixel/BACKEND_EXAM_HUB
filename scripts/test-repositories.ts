@@ -5,38 +5,7 @@ import { pool } from "../src/config/db";
 import { ExamRepositorie } from "../src/Repositorie/ExamRepositorie";
 import { QuestionRepositorie } from "../src/Repositorie/QuestionRepositorie";
 
-/**
- * Script de test manuel pour ExamRepositorie et QuestionRepositorie.
- *
- * BUT : vérifier que le SQL brut fonctionne réellement contre la vraie
- * base PostgreSQL (via Docker), avant d'écrire la couche Service/Controller
- * par-dessus -- exactement l'esprit du conseil du sujet ("testez avant de
- * dire que c'est fini"), appliqué à la couche base de données.
- *
- * Ce n'est PAS un test automatisé (pas de framework de test ici, juste un
- * script qu'on lit à l'oeil) -- suffisant pour une vérification manuelle
- * rapide à ce stade du projet.
- *
- * PRÉREQUIS avant de lancer :
- *   1. docker compose up -d          (la base doit tourner)
- *   2. Un cours doit exister en base, avec l'id utilisé ci-dessous
- *      (TEST_COURSE_ID) -- ajustez cette valeur selon ce qui existe
- *      réellement chez vous (vérifiez avec :
- *      docker exec -it exam-hub-db psql -U exam_hub_user -d exam_hub
- *        -c "SELECT id, code FROM courses;")
- *      Si aucun cours n'existe encore (BE1 n'a pas encore livré
- *      CourseController), insérez-en un manuellement pour ce test :
- *      docker exec -it exam-hub-db psql -U exam_hub_user -d exam_hub
- *        -c "INSERT INTO courses (code, name, description)
- *            VALUES ('TEST101', 'Cours de test', 'Pour tests BE2') RETURNING id;"
- *
- * LANCEMENT :
- *   npx tsx src/test-repositories.ts
- *
- * Ce fichier est un script de développement, PAS un fichier à committer
- * dans le squelette final -- à supprimer ou déplacer dans un dossier
- * scripts/ une fois la vérification faite, pour ne pas polluer src/.
- */
+ 
 
 const TEST_COURSE_ID = 1; // <-- ajustez selon l'id réel d'un cours existant chez vous
 
@@ -177,14 +146,14 @@ async function main() {
   console.log(`12b. Examen supprimé : ${examDeleted}`);
   assertEqual(examDeleted, true, "La suppression de l'examen doit réussir (plus de tentatives ni questions dessus)");
 
-  console.log("\n✅ Tous les tests sont passés avec succès.");
+  console.log("\n Tous les tests sont passés avec succès.");
 }
 
 // ----------------------------- Petits assert maison ---------------------
 
 function assertEqual<T>(actual: T, expected: T, message: string): void {
   if (actual !== expected) {
-    console.error(`\n❌ ÉCHEC : ${message}`);
+    console.error(`\n ÉCHEC : ${message}`);
     console.error(`   attendu : ${JSON.stringify(expected)}`);
     console.error(`   obtenu  : ${JSON.stringify(actual)}`);
     process.exitCode = 1;
@@ -194,7 +163,7 @@ function assertEqual<T>(actual: T, expected: T, message: string): void {
 
 function assertTrue(condition: boolean, message: string): void {
   if (!condition) {
-    console.error(`\n❌ ÉCHEC : ${message}`);
+    console.error(`\n ÉCHEC : ${message}`);
     process.exitCode = 1;
     throw new Error(message);
   }
@@ -204,7 +173,7 @@ function assertTrue(condition: boolean, message: string): void {
 
 main()
   .catch((err) => {
-    console.error("\n❌ Le script a échoué :", err.message ?? err);
+    console.error("\n Le script a échoué :", err.message ?? err);
     process.exitCode = 1;
   })
   .finally(async () => {
