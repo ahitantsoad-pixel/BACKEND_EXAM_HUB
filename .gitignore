@@ -3,3 +3,6 @@ dist
 .env
 *.log
 body.json
+login.json
+login_student.json
+student.json
