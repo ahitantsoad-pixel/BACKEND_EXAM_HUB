@@ -1,77 +1,48 @@
+// src/Service/AttemptService.ts
+import { pool } from "../config/db";
+import { ApiError } from "../Security/ApiError";
 import { AttemptRepositorie } from "../Repositorie/AttemptRepositorie";
+import { ExamRepositorie } from "../Repositorie/ExamRepositorie";
+import { QuestionRepositorie } from "../Repositorie/QuestionRepositorie";
 import { Attempt } from "../Model/Attempt";
 import { SubmittedAnswer, AnswerCorrection, AnswerRow } from "../Model/Answer";
+import { Exam } from "../Model/Exam";
+import { QuestionAdmin } from "../Model/Question";
 
-export interface ExamForAttempt {
-  id: number;
-  courseId: number;
-  courseName?: string;
-  title: string;
-  startsAt: string;
-  endsAt: string;
-}
+const attemptRepo = new AttemptRepositorie(pool);
 
-export interface ChoiceForAttempt {
-  id: number;
-  text: string;
-  correct: boolean;
-}
-
-export interface QuestionForAttempt {
-  id: number;
-  text: string;
-  points: number;
-  choices: ChoiceForAttempt[];
-}
-
-export interface ExamRepositorieLike {
-  findById(examId: number): Promise<ExamForAttempt | null>;
-}
-
-export interface QuestionRepositorieLike {
-  findByExam(examId: number): Promise<QuestionForAttempt[]>;
-}
-
-export class ServiceError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = "ServiceError";
-  }
-}
-
-export class AttemptService {
-  constructor(
-    private attemptRepo: AttemptRepositorie,
-    private examRepo: ExamRepositorieLike,
-    private questionRepo: QuestionRepositorieLike
-  ) {}
-
-  /** GET /api/my/exams */
-  async getAvailableExams(studentId: number, allExams: ExamForAttempt[]): Promise<ExamForAttempt[]> {
+export const AttemptService = {
+  /** GET /api/my/exams — examens dispo pour l'étudiant (fenêtre ouverte + pas déjà passés) */
+  async getAvailableExams(studentId: number): Promise<Exam[]> {
+    const allExams = await ExamRepositorie.findAll();
     const now = new Date();
-    const available: ExamForAttempt[] = [];
+    const available: Exam[] = [];
     for (const exam of allExams) {
-      const inWindow = new Date(exam.startsAt) <= now && now <= new Date(exam.endsAt);
+      const inWindow = exam.startsAt <= now && now <= exam.endsAt;
       if (!inWindow) continue;
-      const already = await this.attemptRepo.existsForStudentAndExam(studentId, exam.id);
+      const already = await attemptRepo.existsForStudentAndExam(studentId, exam.id);
       if (!already) available.push(exam);
     }
     return available;
-  }
+  },
 
-  /** GET /api/my/exams/:id */
+  /** GET /api/my/exams/:id — détail pour passage, sans le champ "correct" (RG-07) */
   async getExamForStudent(studentId: number, examId: number) {
-    const exam = await this.examRepo.findById(examId);
-    if (!exam) throw new ServiceError(404, "Examen introuvable.");
+    const exam = await ExamRepositorie.findById(examId);
+    if (!exam) throw new ApiError(404, "Examen introuvable.");
 
     this.assertWithinWindow(exam);
 
-    const already = await this.attemptRepo.existsForStudentAndExam(studentId, examId);
-    if (already) throw new ServiceError(409, "Vous avez déjà passé cet examen.");
+    const already = await attemptRepo.existsForStudentAndExam(studentId, examId);
+    if (already) throw new ApiError(409, "Vous avez déjà passé cet examen.");
 
-    const questions = await this.questionRepo.findByExam(examId);
+    const questions = await QuestionRepositorie.findByExamId(examId);
     return {
-      ...exam,
+      id: exam.id,
+      title: exam.title,
+      description: exam.description,
+      startsAt: exam.startsAt,
+      endsAt: exam.endsAt,
       questions: questions.map((q) => ({
         id: q.id,
         text: q.text,
@@ -79,47 +50,36 @@ export class AttemptService {
         choices: q.choices.map((c) => ({ id: c.id, text: c.text })), // jamais "correct" (RG-07)
       })),
     };
-  }
+  },
 
-  /** POST /api/my/exams/:id/submit */
-  async submitExam(
-    studentId: number,
-    examId: number,
-    body: { answers: SubmittedAnswer[] }
-  ): Promise<{
-    attemptId: number;
-    score: number;
-    totalPoints: number;
-    submittedAt: string;
-    answers: AnswerCorrection[];
-  }> {
-    const exam = await this.examRepo.findById(examId);
-    if (!exam) throw new ServiceError(404, "Examen introuvable.");
+  /** POST /api/my/exams/:id/submit — RG-02, RG-03, RG-05, RG-06, RG-12 */
+  async submitExam(studentId: number, examId: number, body: { answers: SubmittedAnswer[] }) {
+    const exam = await ExamRepositorie.findById(examId);
+    if (!exam) throw new ApiError(404, "Examen introuvable.");
 
     this.assertWithinWindow(exam); // RG-03, revérifié à la soumission
 
-    const already = await this.attemptRepo.existsForStudentAndExam(studentId, examId);
-    if (already) throw new ServiceError(409, "Vous avez déjà passé cet examen."); // RG-02
+    const already = await attemptRepo.existsForStudentAndExam(studentId, examId);
+    if (already) throw new ApiError(409, "Vous avez déjà passé cet examen."); // RG-02
 
-    const questions = await this.questionRepo.findByExam(examId);
-    if (questions.length === 0) throw new ServiceError(400, "Cet examen n'a aucune question.");
+    const questions: QuestionAdmin[] = await QuestionRepositorie.findByExamId(examId);
+    if (questions.length === 0) throw new ApiError(400, "Cet examen n'a aucune question.");
 
     const questionIds = new Set(questions.map((q) => q.id));
     for (const a of body.answers) {
       if (!questionIds.has(a.questionId)) {
-        throw new ServiceError(400, "Réponse invalide pour une ou plusieurs questions.");
+        throw new ApiError(400, "Réponse invalide pour une ou plusieurs questions.");
       }
       if (a.choiceId !== null) {
         const question = questions.find((q) => q.id === a.questionId)!;
         const validChoice = question.choices.some((c) => c.id === a.choiceId);
         if (!validChoice) {
-          throw new ServiceError(400, "Réponse invalide pour une ou plusieurs questions.");
+          throw new ApiError(400, "Réponse invalide pour une ou plusieurs questions.");
         }
       }
     }
 
-    // RG-06 : calcul du score UNIQUEMENT côté serveur — rien de tout ça n'est stocké en base,
-    // isCorrect/points sont dérivés à la volée à partir de questions/choices
+    // RG-06 : calcul du score UNIQUEMENT côté serveur, à partir des vraies bonnes réponses
     let score = 0;
     const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
 
@@ -143,11 +103,10 @@ export class AttemptService {
         choices: question.choices,
       });
 
-      // seul questionId/choiceId est persisté — is_correct/points n'existent plus en base
       answersToPersist.push({ questionId: question.id, choiceId });
     }
 
-    const attempt: Attempt = await this.attemptRepo.createAttemptWithAnswers({
+    const attempt: Attempt = await attemptRepo.createAttemptWithAnswers({
       studentId,
       examId,
       score,
@@ -157,42 +116,41 @@ export class AttemptService {
     return {
       attemptId: attempt.id,
       score: attempt.score,
-      totalPoints, // recalculé, jamais stocké dans attempts
+      totalPoints,
       submittedAt: attempt.submittedAt,
       answers: answerCorrections, // RG-12
     };
-  }
+  },
 
-  /** GET /api/my/results */
+  /** GET /api/my/results — historique de l'étudiant connecté */
   async getMyResults(studentId: number) {
-    const attempts = await this.attemptRepo.findByStudent(studentId);
+    const attempts = await attemptRepo.findByStudent(studentId);
     const results = [];
     for (const attempt of attempts) {
-      const exam = await this.examRepo.findById(attempt.examId);
-      const questions = await this.questionRepo.findByExam(attempt.examId);
+      const exam = await ExamRepositorie.findById(attempt.examId);
+      const questions = await QuestionRepositorie.findByExamId(attempt.examId);
       const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
       results.push({
         attemptId: attempt.id,
         examId: attempt.examId,
         examTitle: exam?.title ?? "",
-        courseName: exam?.courseName ?? "",
         score: attempt.score,
         totalPoints,
         submittedAt: attempt.submittedAt,
       });
     }
     return results;
-  }
+  },
 
-  /** GET /api/my/results/:attemptId */
+  /** GET /api/my/results/:attemptId — détail/correction d'une tentative passée */
   async getMyResultDetail(studentId: number, attemptId: number) {
-    const attempt = await this.attemptRepo.findById(attemptId);
-    if (!attempt) throw new ServiceError(404, "Tentative introuvable.");
-    if (attempt.studentId !== studentId) throw new ServiceError(403, "Accès refusé à cette tentative.");
+    const attempt = await attemptRepo.findById(attemptId);
+    if (!attempt) throw new ApiError(404, "Tentative introuvable.");
+    if (attempt.studentId !== studentId) throw new ApiError(403, "Accès refusé à cette tentative.");
 
-    const rows: AnswerRow[] = await this.attemptRepo.findAnswersByAttempt(attemptId);
-    const questions = await this.questionRepo.findByExam(attempt.examId);
-    const exam = await this.examRepo.findById(attempt.examId);
+    const rows: AnswerRow[] = await attemptRepo.findAnswersByAttempt(attemptId);
+    const questions = await QuestionRepositorie.findByExamId(attempt.examId);
+    const exam = await ExamRepositorie.findById(attempt.examId);
     const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
 
     const answers: AnswerCorrection[] = rows.map((row) => {
@@ -220,28 +178,35 @@ export class AttemptService {
       submittedAt: attempt.submittedAt,
       answers,
     };
-  }
+  },
 
-  /** GET /api/exams/:id/results */
-  async getExamResults(examId: number, examTitle: string, totalPoints: number) {
-    const attempts = await this.attemptRepo.findByExam(examId);
+  /** GET /api/exams/:id/results — vue admin (moyenne, tentatives) */
+  async getExamResults(examId: number) {
+    const exam = await ExamRepositorie.findById(examId);
+    if (!exam) throw new ApiError(404, "Examen introuvable.");
+    const questions = await QuestionRepositorie.findByExamId(examId);
+    const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
+
+    const attempts = await attemptRepo.findByExam(examId);
     const results = attempts.map((a) => ({
       studentId: a.studentId,
       attemptId: a.id,
       score: a.score,
       submittedAt: a.submittedAt,
-      attemptsCount: 1,
+      attemptsCount: 1, // toujours 1 vu RG-02, gardé pour robustesse
     }));
     const average = results.length
       ? Math.round((results.reduce((s, r) => s + r.score, 0) / results.length) * 10) / 10
       : 0;
-    return { examId, examTitle, totalPoints, average, results };
-  }
+    return { examId, examTitle: exam.title, totalPoints, average, results };
+  },
 
-  private assertWithinWindow(exam: ExamForAttempt) {
+  // -------- Helpers --------
+
+  assertWithinWindow(exam: Exam) {
     const now = new Date();
-    if (now < new Date(exam.startsAt) || now > new Date(exam.endsAt)) {
-      throw new ServiceError(403, "Cet examen n'est pas disponible actuellement.");
+    if (now < exam.startsAt || now > exam.endsAt) {
+      throw new ApiError(403, "Cet examen n'est pas disponible actuellement.");
     }
-  }
-}
+  },
+};
