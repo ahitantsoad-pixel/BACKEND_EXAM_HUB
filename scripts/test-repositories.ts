@@ -1,9 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { pool } from "./config/db";
-import { ExamRepositorie } from "./Repositorie/ExamRepositorie";
-import { QuestionRepositorie } from "./Repositorie/QuestionRepositorie";
+import { pool } from "../src/config/db";
+import { ExamRepositorie } from "../src/Repositorie/ExamRepositorie";
+import { QuestionRepositorie } from "../src/Repositorie/QuestionRepositorie";
 
 /**
  * Script de test manuel pour ExamRepositorie et QuestionRepositorie.
