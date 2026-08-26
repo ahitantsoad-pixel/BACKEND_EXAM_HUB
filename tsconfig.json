@@ -16,6 +16,6 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "scripts/test-repositories.ts"],
   "exclude": ["node_modules", "dist"]
 }
