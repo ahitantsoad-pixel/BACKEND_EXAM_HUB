@@ -33,7 +33,8 @@ export const StudentController = {
   async resetPassword(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
-      const result = await StudentService.resetPassword(id);
+      const { password } = req.body;
+      const result = await StudentService.resetPassword(id, password);
       res.status(200).json(result);
     } catch (err) {
       next(err);
