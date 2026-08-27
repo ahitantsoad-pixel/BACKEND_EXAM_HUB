@@ -10,4 +10,3 @@ app.listen(PORT, () => {
   console.log(`Exam Hub backend démarré sur http://localhost:${PORT}`);
 });
 
- 
