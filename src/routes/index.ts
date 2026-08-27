@@ -4,6 +4,7 @@ import studentRoutes from "./studentRoutes";
 import courseRoutes from "./courseRoutes";
 import examRoutes from "./examRoutes";
 import questionRoutes from "./questionRoutes";
+import myRoutes from "./myRoutes";
 
 /**
  * Point de montage central de toutes les routes /api/*.
@@ -21,6 +22,6 @@ router.use("/students", studentRoutes);
 router.use("/courses", courseRoutes);
 router.use("/exams", examRoutes);
 router.use("/questions", questionRoutes);
-// router.use("/my", myRoutes);
+router.use("/my", myRoutes);
 
 export default router;
